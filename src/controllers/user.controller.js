@@ -1,9 +1,9 @@
 import jwt from "jsonwebtoken";
-import { User } from "../models/user.models.js";
+import { User } from "../models/user.model.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
-import { uplodeOnCloudinary } from "../utils/cloudinary.js";
+import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { options } from "../utils/cookieOptions.js";
 import mongoose from "mongoose";
 
@@ -52,8 +52,8 @@ const registerUser = asyncHandler(async (req, res) => {
   if (!avatarLocalPath) {
     throw new ApiError(400, "Avatar file is required");
   }
-  const avatar = await uplodeOnCloudinary(avatarLocalPath);
-  const coverImage = await uplodeOnCloudinary(coverImageLocalPath);
+  const avatar = await uploadOnCloudinary(avatarLocalPath);
+  const coverImage = await uploadOnCloudinary(coverImageLocalPath);
   if (!avatar) {
     throw new ApiError(400, "Avatar file is required");
   }
@@ -235,7 +235,7 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
     if (!avatarLocalPath) {
       throw new ApiError(400, "Avatar file is required");
     }
-    const avatar = await uplodeOnCloudinary(avatarLocalPath);
+    const avatar = await uploadOnCloudinary(avatarLocalPath);
     if (!avatar) {
       throw new ApiError(400, "Avatar file is required");
     }
@@ -253,7 +253,7 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
   try {
     const coverImageLocalPath = req.file.path;
 
-    const coverImage = await uplodeOnCloudinary(coverImageLocalPath);
+    const coverImage = await uploadOnCloudinary(coverImageLocalPath);
     if (!coverImage) {
       throw new ApiError(400, "Cover Image file is required");
     }
@@ -291,56 +291,56 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
   const channel = await User.aggregate([
     {
       $match: {
-        username: username?.toLowerCase(),
+        username: username.toLowerCase(),
       },
     },
     {
       $lookup: {
-        from: "subscription",
+        from: "subscriptions",
         localField: "_id",
         foreignField: "channel",
         as: "subscribers",
       },
     },
     {
-      $lookup:{
-        from: "subscription",
+      $lookup: {
+        from: "subscriptions",
         localField: "_id",
         foreignField: "subscriber",
         as: "subscribedTo",
-      }
+      },
     },
     {
-      $addFields:{
-        subscribersCount:{
-          $size:"$subscribers"
+      $addFields: {
+        subscribersCount: {
+          $size: "$subscribers",
         },
-        channelsSubscribedToCount:{
-          $size:"$subscribedTo"
+        channelsSubscribedToCount: {
+          $size: "$subscribedTo",
         },
-        isSubscribed:{
+        isSubscribed: {
           $cond:{
             if:{$in:[req.user?._id,"$subscribers.subscriber"]},
             then:true,
             else:false
           }
-        }
-      }
+        },
+      },
     },
     {
-      $project:{
-        fullName:1,
-        username:1,
-        email:1,
-        avatar:1,
-        coverImage:1,
-        subscribersCount:1,
-        channelsSubscribedToCount:1,
-        isSubscribed:1,
-      }
-    }
+      $project: {
+        fullName: 1,
+        username: 1,
+        email: 1,
+        avatar: 1,
+        coverImage: 1,
+        subscribersCount: 1,
+        channelsSubscribedToCount: 1,
+        isSubscribed: 1,
+      },
+    },
   ]);
-  
+
   if(!channel.length){
     throw new ApiError(400, "channel does not exist");
   };
