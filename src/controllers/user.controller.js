@@ -231,7 +231,7 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
 
 const updateUserAvatar = asyncHandler(async (req, res) => {
   try {
-    const avatarLocalPath = req.files?.avatar[0]?.path;
+    const avatarLocalPath = req.file.path;
     if (!avatarLocalPath) {
       throw new ApiError(400, "Avatar file is required");
     }
@@ -251,14 +251,7 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
 });
 const updateUserCoverImage = asyncHandler(async (req, res) => {
   try {
-    let coverImageLocalPath;
-    if (
-      req.files &&
-      Array.isArray(req.files.coverImage) &&
-      req.files.coverImage.length > 0
-    ) {
-      coverImageLocalPath = req.files?.coverImage[0]?.path;
-    }
+    const coverImageLocalPath = req.file.path;
 
     const coverImage = await uplodeOnCloudinary(coverImageLocalPath);
     if (!coverImage) {
@@ -347,9 +340,11 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
       }
     }
   ]);
+  
   if(!channel.length){
     throw new ApiError(400, "channel does not exist");
   };
+
   return res
   .status(200)
   .json(
@@ -400,6 +395,7 @@ const user=await User.aggregate([
     }
   }
 ]);
+
 return res
 .status(200)
 .json(
