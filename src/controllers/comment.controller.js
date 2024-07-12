@@ -54,7 +54,7 @@ const addComment = asyncHandler(async (req, res) => {
     owner: userId,
   });
 
- return res
+  return res
     .status(201)
     .json(new ApiResponse(201, comment, "Comment added successfully"));
 });
