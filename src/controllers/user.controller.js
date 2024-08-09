@@ -6,6 +6,7 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
 import { options } from "../utils/cookieOptions.js";
 import mongoose from "mongoose";
+import { uploadOnFirebase } from "../utils/firebase.js";
 
 const genrateAccessAndRefreshToken = async (userId) => {
   try {
@@ -38,30 +39,59 @@ const registerUser = asyncHandler(async (req, res) => {
   if (existedUser) {
     throw new ApiError(409, "User already exists");
   }
-  const avatarLocalPath = req.files?.avatar[0]?.path;
-  //   const coverImageLocalPath = req.files?.coverImage[0]?.path;
-  let coverImageLocalPath;
-  if (
-    req.files &&
-    Array.isArray(req.files.coverImage) &&
-    req.files.coverImage.length > 0
-  ) {
-    coverImageLocalPath = req.files?.coverImage[0]?.path;
-  }
+  const { files } = req;
+    const uploadPromises = {
+      avatar: [],
+      coverImage: []
+    };
+    
+    if (files['avatar']) {
+      uploadPromises.avatar = files['avatar'].map(file =>
+        uploadOnFirebase(file)
+      );
+    }
+    if (files['coverImage']) {
+      uploadPromises.coverImage = files['coverImage'].map(file =>
+        uploadOnFirebase(file)
+      );
+    }
 
-  if (!avatarLocalPath) {
-    throw new ApiError(400, "Avatar file is required");
-  }
-  const avatar = await uploadOnCloudinary(avatarLocalPath);
-  const coverImage = await uploadOnCloudinary(coverImageLocalPath);
-  if (!avatar) {
+    const [[...avatarUrls], [...coverImageUrls]] = await Promise.all([
+      Promise.all(uploadPromises.avatar),
+      Promise.all(uploadPromises.coverImage)
+    ]);
+
+    const avatar = avatarUrls.map(url => ({ url }));
+    const coverImage = coverImageUrls.map((url) => ({ url }));
+  // const avatarLocalPath = req.files?.avatar[0]?.path;
+  //   const coverImageLocalPath = req.files?.coverImage[0]?.path;
+  // let coverImageLocalPath;
+  // if (
+  //   req.files &&
+  //   Array.isArray(req.files.coverImage) &&
+  //   req.files.coverImage.length > 0
+  // ) {
+  //   coverImageLocalPath = req.files?.coverImage[0]?.path;
+  // }
+
+  // if (!avatarLocalPath) {
+  //   throw new ApiError(400, "Avatar file is required");
+  // }
+  // const avatar = await uploadOnCloudinary(avatarLocalPath);
+  // const coverImage = await uploadOnCloudinary(coverImageLocalPath);
+  // if (!avatar) {
+  //   throw new ApiError(400, "Avatar file is required");
+  // }
+  if (avatar.length===0) {
     throw new ApiError(400, "Avatar file is required");
   }
   const user = await User.create({
     username: username.toLowerCase(),
     fullName,
-    avatar: avatar.url,
-    coverImage: coverImage?.url || "",
+    // avatar: avatar.url,
+    // coverImage: coverImage?.url || "",
+    avatar: avatar[0].url,
+    coverImage: coverImage[0]?.url || "",
     email,
     password,
   });
@@ -231,16 +261,19 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
 
 const updateUserAvatar = asyncHandler(async (req, res) => {
   try {
-    const avatarLocalPath = req.file.path;
+    // const avatarLocalPath = req.file.path;
+    const avatarLocalPath = req.file;
     if (!avatarLocalPath) {
       throw new ApiError(400, "Avatar file is required");
     }
-    const avatar = await uploadOnCloudinary(avatarLocalPath);
+    // const avatar = await uploadOnCloudinary(avatarLocalPath);
+    const avatar = await uploadOnFirebase(avatarLocalPath);
     if (!avatar) {
       throw new ApiError(400, "Avatar file is required");
     }
     const user = req.user;
-    if (avatar) user.avatar = avatar.url;
+    // if (avatar) user.avatar = avatar.url;
+    if (avatar) user.avatar = avatar;
     await user.save({ validateBeforeSave: true });
     return res
       .status(200)
@@ -251,14 +284,17 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
 });
 const updateUserCoverImage = asyncHandler(async (req, res) => {
   try {
-    const coverImageLocalPath = req.file.path;
+    // const coverImageLocalPath = req.file.path;
+    const coverImageLocalPath = req.file;
 
-    const coverImage = await uploadOnCloudinary(coverImageLocalPath);
+    // const coverImage = await uploadOnCloudinary(coverImageLocalPath);
+    const coverImage = await uploadOnFirebase(coverImageLocalPath);
     if (!coverImage) {
       throw new ApiError(400, "Cover Image file is required");
     }
     const user = req.user;
-    if (coverImage) user.coverImage = coverImage.url;
+    // if (coverImage) user.coverImage = coverImage.url;
+    if (coverImage) user.coverImage = coverImage;
     await user.save({ validateBeforeSave: true });
     return res
       .status(200)
